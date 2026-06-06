@@ -2,6 +2,7 @@
 # https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
 #
 # Binaries for programs and plugins
+/lgl
 *.exe
 *.exe~
 *.dll
@@ -24,9 +25,15 @@ profile.cov
 go.work
 go.work.sum
 
+# Local Go caches used by sandboxed test runs
+.gocache/
+.gomodcache/
+
 # env file
 .env
 
 # Editor/IDE
 # .idea/
 # .vscode/
+
+graphify-out

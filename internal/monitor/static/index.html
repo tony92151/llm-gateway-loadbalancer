@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LLM Gateway Monitor</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f6f8;
+      --panel: #ffffff;
+      --line: #dfe3ea;
+      --text: #171a21;
+      --muted: #667085;
+      --ok: #16794c;
+      --warn: #b54708;
+      --bad: #b42318;
+      --chip: #eef1f5;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px 24px;
+      background: #171a21;
+      color: #fff;
+    }
+    h1 { margin: 0; font-size: 18px; font-weight: 650; }
+    main { padding: 20px 24px 28px; display: grid; gap: 16px; }
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      min-width: 0;
+    }
+    h2 { margin: 0 0 12px; font-size: 14px; font-weight: 650; }
+    .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .segmented {
+      display: inline-flex;
+      overflow: hidden;
+      border: 1px solid #475467;
+      border-radius: 6px;
+    }
+    .segmented button {
+      border: 0;
+      border-right: 1px solid #475467;
+      background: transparent;
+      color: #fff;
+      min-width: 46px;
+      height: 30px;
+      padding: 0 10px;
+      cursor: pointer;
+    }
+    .segmented button:last-child { border-right: 0; }
+    .segmented button.active { background: #fff; color: #171a21; }
+    .refresh {
+      border: 1px solid #475467;
+      background: transparent;
+      color: #fff;
+      border-radius: 6px;
+      height: 30px;
+      padding: 0 10px;
+      cursor: pointer;
+    }
+    .status { color: #d0d5dd; font-size: 12px; min-width: 86px; text-align: right; }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(120px, 1fr));
+      gap: 12px;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fbfcfe;
+      min-height: 82px;
+    }
+    .label { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+    .value { font-size: 24px; line-height: 1.1; font-weight: 700; white-space: nowrap; }
+    .subvalue { color: var(--muted); font-size: 12px; margin-top: 6px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; border-bottom: 1px solid #edf0f4; padding: 8px; vertical-align: middle; }
+    th { color: var(--muted); font-weight: 650; }
+    tr:last-child td { border-bottom: 0; }
+    code { background: var(--chip); border-radius: 4px; padding: 2px 5px; }
+    .badge { display: inline-flex; align-items: center; border-radius: 999px; padding: 3px 8px; font-size: 12px; font-weight: 650; }
+    .badge.ok { background: #dcfae6; color: var(--ok); }
+    .badge.warn { background: #fef0c7; color: var(--warn); }
+    .badge.bad { background: #fee4e2; color: var(--bad); }
+    .empty { color: var(--muted); font-size: 13px; padding: 6px 0; }
+    .error { color: var(--bad); }
+    @media (max-width: 980px) {
+      header { align-items: flex-start; flex-direction: column; }
+      .status { text-align: left; }
+      .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      section { overflow-x: auto; }
+      table { min-width: 760px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>LLM Gateway Monitor</h1>
+    <div class="toolbar">
+      <div class="segmented" id="windows">
+        <button data-window="15m">15m</button>
+        <button data-window="1h" class="active">1h</button>
+        <button data-window="24h">24h</button>
+      </div>
+      <button class="refresh" id="refresh">Refresh</button>
+      <div class="status" id="status">Loading</div>
+    </div>
+  </header>
+  <main>
+    <section>
+      <h2>Overview</h2>
+      <div class="cards">
+        <div class="card"><div class="label">Requests</div><div class="value" id="requests">0</div></div>
+        <div class="card"><div class="label">Success Rate</div><div class="value" id="success">0%</div></div>
+        <div class="card"><div class="label">Errors</div><div class="value" id="errors">0</div></div>
+        <div class="card"><div class="label">Tokens</div><div class="value" id="tokens">0</div><div class="subvalue" id="tokensSplit">0 in / 0 out</div></div>
+        <div class="card"><div class="label">Cost</div><div class="value" id="cost">$0.0000</div></div>
+        <div class="card"><div class="label">Avg Latency</div><div class="value" id="latency">0ms</div></div>
+      </div>
+    </section>
+    <section>
+      <h2>Keys</h2>
+      <table>
+        <thead><tr><th>Key</th><th>Status</th><th>In flight</th><th>Requests</th><th>Errors</th><th>Tokens</th><th>Cost</th><th>Last error</th></tr></thead>
+        <tbody id="keys"></tbody>
+      </table>
+    </section>
+    <section>
+      <h2>Recent Errors</h2>
+      <table>
+        <thead><tr><th>Time</th><th>Status</th><th>Key</th><th>Model</th><th>Path</th><th>Latency</th><th>Error</th></tr></thead>
+        <tbody id="recentErrors"></tbody>
+      </table>
+    </section>
+  </main>
+  <script>
+    let activeWindow = '1h';
+
+    const els = {
+      status: document.getElementById('status'),
+      requests: document.getElementById('requests'),
+      success: document.getElementById('success'),
+      errors: document.getElementById('errors'),
+      tokens: document.getElementById('tokens'),
+      tokensSplit: document.getElementById('tokensSplit'),
+      cost: document.getElementById('cost'),
+      latency: document.getElementById('latency'),
+      keys: document.getElementById('keys'),
+      recentErrors: document.getElementById('recentErrors')
+    };
+
+    function text(value) {
+      return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    }
+
+    function number(value) {
+      return Number(value || 0).toLocaleString();
+    }
+
+    function money(value) {
+      return '$' + Number(value || 0).toFixed(4);
+    }
+
+    function pct(value) {
+      return Math.round(Number(value || 0) * 1000) / 10 + '%';
+    }
+
+    function keyStatus(key) {
+      if (!key.enabled) return ['Disabled', 'bad'];
+      if (key.cooldown_until && new Date(key.cooldown_until) > new Date()) return ['Cooling down', 'warn'];
+      if (key.last_error) return ['Warning', 'warn'];
+      return ['Healthy', 'ok'];
+    }
+
+    async function refresh() {
+      els.status.textContent = 'Loading';
+      const res = await fetch('/admin/dashboard?window=' + encodeURIComponent(activeWindow));
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      render(data);
+      els.status.textContent = new Date().toLocaleTimeString();
+    }
+
+    function render(data) {
+      const overview = data.overview || {};
+      els.requests.textContent = number(overview.requests);
+      els.success.textContent = pct(overview.success_rate);
+      els.errors.textContent = number(overview.errors);
+      els.tokens.textContent = number((overview.input_tokens || 0) + (overview.output_tokens || 0));
+      els.tokensSplit.textContent = number(overview.input_tokens) + ' in / ' + number(overview.output_tokens) + ' out';
+      els.cost.textContent = money(overview.cost_usd);
+      els.latency.textContent = number(overview.avg_latency_ms) + 'ms';
+
+      const keys = data.keys || [];
+      els.keys.innerHTML = keys.length ? keys.map(key => {
+        const [label, cls] = keyStatus(key);
+        return `<tr>
+          <td><code>${text(key.label)}</code></td>
+          <td><span class="badge ${cls}">${label}</span></td>
+          <td>${number(key.in_flight)}</td>
+          <td>${number(key.requests)}</td>
+          <td>${number(key.errors)}</td>
+          <td>${number(key.tokens)}</td>
+          <td>${money(key.cost_usd)}</td>
+          <td>${text(key.last_error)}</td>
+        </tr>`;
+      }).join('') : '<tr><td colspan="8"><div class="empty">No keys configured.</div></td></tr>';
+
+      const errors = data.recent_errors || [];
+      els.recentErrors.innerHTML = errors.length ? errors.map(row => `<tr>
+        <td>${text(new Date(row.started_at).toLocaleString())}</td>
+        <td><span class="badge bad">${number(row.status_code)}</span></td>
+        <td><code>${text(row.key_label)}</code></td>
+        <td>${text(row.model)}</td>
+        <td>${text(row.path)}</td>
+        <td>${number(row.latency_ms)}ms</td>
+        <td class="error">${text(row.error)}</td>
+      </tr>`).join('') : '<tr><td colspan="7"><div class="empty">No recent errors.</div></td></tr>';
+    }
+
+    document.getElementById('windows').addEventListener('click', event => {
+      const button = event.target.closest('button[data-window]');
+      if (!button) return;
+      activeWindow = button.dataset.window;
+      document.querySelectorAll('#windows button').forEach(el => el.classList.toggle('active', el === button));
+      refresh().catch(showError);
+    });
+    document.getElementById('refresh').addEventListener('click', () => refresh().catch(showError));
+
+    function showError(err) {
+      els.status.textContent = 'Error';
+      els.recentErrors.innerHTML = `<tr><td colspan="7"><div class="empty error">${text(err.message)}</div></td></tr>`;
+    }
+
+    refresh().catch(showError);
+    setInterval(() => refresh().catch(showError), 5000);
+  </script>
+</body>
+</html>

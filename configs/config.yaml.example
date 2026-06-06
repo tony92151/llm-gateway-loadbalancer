@@ -1,0 +1,84 @@
+server:
+  host: "0.0.0.0"
+  port: 8787
+  read_timeout: 30s
+  write_timeout: 300s
+  idle_timeout: 120s
+  admin_port: 8788
+
+monitor:
+  enabled: true
+  host: "127.0.0.1"
+  port: 8789
+
+upstream:
+  name: "my_provider"
+  base_url: "https://api.example.com/v1"
+  timeout: 60s
+  max_idle_conns: 100
+  max_conns_per_host: 20
+
+  models:
+    - name: "gpt-4.1"
+      enabled: true
+      type: "chat"
+      pricing:
+        input_per_1m: 2.00
+        output_per_1m: 8.00
+        cached_input_per_1m: 0.50
+    - name: "gpt-4.1-mini"
+      enabled: true
+      type: "chat"
+      pricing:
+        input_per_1m: 0.40
+        output_per_1m: 1.60
+        cached_input_per_1m: 0.10
+    - name: "gpt-4o"
+      enabled: true
+      type: "chat"
+      pricing:
+        input_per_1m: 2.50
+        output_per_1m: 10.00
+        cached_input_per_1m: 1.25
+    - name: "text-embedding-3-small"
+      enabled: true
+      type: "embedding"
+      pricing:
+        input_per_1m: 0.02
+        output_per_1m: 0.00
+        cached_input_per_1m: 0.00
+
+  keys:
+    - label: "key-a"
+      key: "${UPSTREAM_KEY_A}"
+      weight: 10
+      rpm_limit: 0
+      tpm_limit: 0
+      enabled: true
+    - label: "key-b"
+      key: "${UPSTREAM_KEY_B}"
+      weight: 50
+      rpm_limit: 3000
+      tpm_limit: 500000
+      enabled: true
+
+selector:
+  strategy: "leastload"
+  health_check_interval: 30s
+  cooldown_base: 60s
+  cooldown_max: 600s
+  max_retries: 3
+
+database:
+  path: "./data/llm-gateway.db"
+  max_open_conns: 10
+  max_idle_conns: 5
+  wal_mode: true
+
+crypto:
+  key_env: "LLM_GATEWAY_CRYPTO_KEY"
+
+logging:
+  level: "info"
+  format: "console"
+  output: "stdout"
