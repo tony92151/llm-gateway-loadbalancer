@@ -77,6 +77,21 @@ func TestMonitorRouteServesHTMLWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestMonitorRootServesHTMLWhenEnabled(t *testing.T) {
+	handler := NewAdminHandler(fakeAdminProvider{}, true)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body = %s", rr.Code, rr.Body.String())
+	}
+	if rr.Header().Get("Content-Type") != "text/html; charset=utf-8" {
+		t.Fatalf("content-type = %q", rr.Header().Get("Content-Type"))
+	}
+}
+
 func TestAdminDashboardReturnsMergedDashboard(t *testing.T) {
 	provider := fakeAdminProvider{
 		dashboard: DashboardResponse{
