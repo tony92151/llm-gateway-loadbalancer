@@ -72,6 +72,52 @@ curl http://127.0.0.1:8787/v1/chat/completions \
 
 The gateway forwards `/v1/*` requests to `upstream.base_url`, replaces the outbound `Authorization` header with the selected upstream key, and records the request result in SQLite.
 
+### Python OpenAI SDK Example
+
+Install the Python SDK:
+
+```bash
+python -m pip install openai
+```
+
+Start the gateway with your local config:
+
+```bash
+go run ./cmd/lgl serve ./config.yaml
+```
+
+Then point the OpenAI client at the gateway. Match `LGL_BASE_URL` to `server.port` in `config.yaml`, and use one of the enabled model names from `upstream.models`.
+
+```bash
+export LGL_BASE_URL="http://127.0.0.1:8781/v1"
+export LGL_MODEL="lightning-ai/minimax-m2.5"
+
+python - <<'PY'
+import os
+from openai import OpenAI
+
+client = OpenAI(
+    base_url=os.environ["LGL_BASE_URL"],
+    api_key="local-client-token",
+)
+
+print("Available models:")
+for model in client.models.list().data:
+    print("-", model.id)
+
+response = client.chat.completions.create(
+    model=os.environ["LGL_MODEL"],
+    messages=[
+        {"role": "user", "content": "Say hello in one short sentence."},
+    ],
+)
+
+print(response.choices[0].message.content)
+PY
+```
+
+The inbound `api_key` only needs to be a non-empty client token for SDK compatibility; the gateway replaces it with a selected upstream key before forwarding the request.
+
 ## Configuration
 
 See [configs/config.yaml.example](configs/config.yaml.example) for a complete example.
