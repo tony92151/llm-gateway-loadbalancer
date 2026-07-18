@@ -52,7 +52,7 @@ func serveCommand() *cobra.Command {
 			}
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
-			log.Info().Int("proxy_port", cfg.Server.Port).Int("monitor_port", cfg.Monitor.Port).Msg("starting llm gateway")
+			log.Info().Int("proxy_port", cfg.Server.Port).Int("admin_port", cfg.Admin.Port).Msg("starting llm gateway")
 			return gateway.Run(ctx)
 		},
 	}

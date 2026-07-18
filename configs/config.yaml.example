@@ -4,15 +4,14 @@ server:
   read_timeout: 30s
   write_timeout: 300s
   idle_timeout: 120s
-  admin_port: 8788
 
-monitor:
+admin:
   enabled: true
   host: "127.0.0.1"
   port: 8789
+  monitor_ui: true
 
 upstream:
-  name: "my_provider"
   base_url: "https://api.example.com/v1"
   timeout: 60s
   max_idle_conns: 100
@@ -74,9 +73,6 @@ database:
   max_open_conns: 10
   max_idle_conns: 5
   wal_mode: true
-
-crypto:
-  key_env: "LLM_GATEWAY_CRYPTO_KEY"
 
 logging:
   level: "info"

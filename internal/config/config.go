@@ -4,11 +4,10 @@ import "time"
 
 type Config struct {
 	Server   ServerConfig   `mapstructure:"server"`
-	Monitor  MonitorConfig  `mapstructure:"monitor"`
+	Admin    AdminConfig    `mapstructure:"admin"`
 	Upstream UpstreamConfig `mapstructure:"upstream"`
 	Selector SelectorConfig `mapstructure:"selector"`
 	Database DatabaseConfig `mapstructure:"database"`
-	Crypto   CryptoConfig   `mapstructure:"crypto"`
 	Logging  LoggingConfig  `mapstructure:"logging"`
 }
 
@@ -18,17 +17,16 @@ type ServerConfig struct {
 	ReadTimeout  time.Duration `mapstructure:"read_timeout"`
 	WriteTimeout time.Duration `mapstructure:"write_timeout"`
 	IdleTimeout  time.Duration `mapstructure:"idle_timeout"`
-	AdminPort    int           `mapstructure:"admin_port"`
 }
 
-type MonitorConfig struct {
-	Enabled bool   `mapstructure:"enabled"`
-	Host    string `mapstructure:"host"`
-	Port    int    `mapstructure:"port"`
+type AdminConfig struct {
+	Enabled    bool   `mapstructure:"enabled"`
+	Host       string `mapstructure:"host"`
+	Port       int    `mapstructure:"port"`
+	MonitorUI  bool   `mapstructure:"monitor_ui"`
 }
 
 type UpstreamConfig struct {
-	Name            string        `mapstructure:"name"`
 	BaseURL         string        `mapstructure:"base_url"`
 	Timeout         time.Duration `mapstructure:"timeout"`
 	MaxIdleConns    int           `mapstructure:"max_idle_conns"`
@@ -72,10 +70,6 @@ type DatabaseConfig struct {
 	MaxOpenConn int    `mapstructure:"max_open_conns"`
 	MaxIdleConn int    `mapstructure:"max_idle_conns"`
 	WALMode     bool   `mapstructure:"wal_mode"`
-}
-
-type CryptoConfig struct {
-	KeyEnv string `mapstructure:"key_env"`
 }
 
 type LoggingConfig struct {

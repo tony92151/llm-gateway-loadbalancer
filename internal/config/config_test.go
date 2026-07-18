@@ -17,13 +17,12 @@ server:
   read_timeout: 30s
   write_timeout: 300s
   idle_timeout: 120s
-  admin_port: 8788
-monitor:
+admin:
   enabled: true
   host: "127.0.0.1"
   port: 8789
+  monitor_ui: true
 upstream:
-  name: "test"
   base_url: "https://api.example.com/v1"
   timeout: 60s
   max_idle_conns: 10
@@ -77,10 +76,9 @@ func TestLoadRejectsTokenBalanceInMVP(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")
 	err := os.WriteFile(path, []byte(`
-server: {host: "127.0.0.1", port: 8787, read_timeout: 30s, write_timeout: 30s, idle_timeout: 30s, admin_port: 8788}
-monitor: {enabled: true, host: "127.0.0.1", port: 8789}
+server: {host: "127.0.0.1", port: 8787, read_timeout: 30s, write_timeout: 30s, idle_timeout: 30s}
+admin: {enabled: true, host: "127.0.0.1", port: 8789, monitor_ui: true}
 upstream:
-  name: "test"
   base_url: "https://api.example.com/v1"
   timeout: 60s
   max_idle_conns: 10

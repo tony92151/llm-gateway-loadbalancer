@@ -47,7 +47,7 @@ Start the gateway:
 go run ./cmd/lgl serve ./config.yaml
 ```
 
-By default, the proxy listens on `http://0.0.0.0:8787` and the admin/monitor server listens on `http://127.0.0.1:8789`.
+By default, the proxy listens on `http://0.0.0.0:8787` and the admin/monitor server listens on `http://127.0.0.1:8789`. Set `admin.monitor_ui` to `false` to disable the browser dashboard while keeping admin JSON APIs available.
 
 You can also build a single binary:
 
@@ -125,7 +125,7 @@ See [configs/config.yaml.example](configs/config.yaml.example) for a complete ex
 Important sections:
 
 - `server`: public proxy listener and request timeouts.
-- `monitor`: admin/monitor listener. When `monitor.enabled` is true, `/monitor/` serves the built-in dashboard.
+- `admin`: admin/monitor listener. `admin.monitor_ui` controls whether `/monitor/` serves the built-in dashboard. `admin.enabled` must be `true` for the admin server to start.
 - `upstream`: upstream base URL, HTTP client tuning, enabled models, pricing, and API keys.
 - `selector`: key selection strategy, health-check interval, cooldown, and max retries.
 - `database`: SQLite path, connection limits, and WAL mode.
@@ -160,7 +160,7 @@ Admin routes are served on the monitor/admin listener:
 - `GET /admin/requests/recent?limit=100`
 - `GET /admin/metrics/summary?window=1h`
 - `GET /admin/dashboard?window=15m|1h|24h`
-- `GET /monitor/` when `monitor.enabled` is true
+- `GET /monitor/` when `admin.monitor_ui` is true
 
 Open the monitor UI locally:
 

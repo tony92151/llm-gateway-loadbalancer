@@ -64,7 +64,7 @@ func New(cfg config.Config) (*App, error) {
 		cfg:          cfg,
 		db:           db,
 		proxyHandler: proxyHandler,
-		adminHandler: httpserver.NewAdminHandler(provider, cfg.Monitor.Enabled),
+		adminHandler: httpserver.NewAdminHandler(provider, cfg.Admin.MonitorUI),
 		health:       healthChecker,
 	}, nil
 }
@@ -120,12 +120,9 @@ func (a *App) Run(ctx context.Context) error {
 		WriteTimeout: a.cfg.Server.WriteTimeout,
 		IdleTimeout:  a.cfg.Server.IdleTimeout,
 	}
-	adminPort := a.cfg.Monitor.Port
-	if adminPort == 0 {
-		adminPort = a.cfg.Server.AdminPort
-	}
+	adminPort := a.cfg.Admin.Port
 	adminServer := &http.Server{
-		Addr:         net.JoinHostPort(a.cfg.Monitor.Host, fmt.Sprint(adminPort)),
+		Addr:         net.JoinHostPort(a.cfg.Admin.Host, fmt.Sprint(adminPort)),
 		Handler:      a.adminHandler,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,

@@ -101,6 +101,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if isPublicEndpoint(r.URL.Path) {
+		h.forwardPublic(w, r)
+		return
+	}
+
 	started := time.Now().UTC()
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -281,6 +286,90 @@ func isHopByHopHeader(key string) bool {
 
 func isEventStream(contentType string) bool {
 	return strings.Contains(strings.ToLower(contentType), "text/event-stream")
+}
+
+func isPublicEndpoint(path string) bool {
+	// These endpoints are publicly-accessible metadata routes that don't need an API key.
+	publicPaths := []string{
+		"/v1/models",
+	}
+	for _, p := range publicPaths {
+		if strings.HasPrefix(strings.TrimRight(path, "/"), p) {
+			return true
+		}
+	}
+	return false
+}
+
+// filterModels returns a /v1/models response containing only models that also
+// appear in the configured prices map. Unknown fields from upstream are
+// preserved in each model entry.
+func filterModels(body []byte, enabled map[string]accounting.Pricing) ([]byte, error) {
+	var upstream struct {
+		Data []map[string]any `json:"data"`
+	}
+	if err := json.Unmarshal(body, &upstream); err != nil {
+		return nil, err
+	}
+	filtered := make([]map[string]any, 0, len(upstream.Data))
+	for _, m := range upstream.Data {
+		if id, ok := m["id"].(string); ok {
+			if _, exists := enabled[id]; exists {
+				filtered = append(filtered, m)
+			}
+		}
+	}
+	out := map[string]any{
+		"object": "list",
+		"data":   filtered,
+	}
+	result, err := json.Marshal(out)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (h *Handler) forwardPublic(w http.ResponseWriter, r *http.Request) {
+	upstreamURL := h.upstreamURL(r.URL)
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "read request body", http.StatusBadRequest)
+		return
+	}
+	_ = r.Body.Close()
+
+	req, err := http.NewRequestWithContext(r.Context(), r.Method, upstreamURL, bytes.NewReader(body))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	copyHeaders(req.Header, r.Header)
+	req.Host = h.baseURL.Host
+
+	resp, err := h.client.Do(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if strings.HasPrefix(r.URL.Path, "/v1/models") && resp.StatusCode == http.StatusOK {
+		if filtered, filterErr := filterModels(responseBody, h.prices); filterErr == nil {
+			responseBody = filtered
+		}
+		// On filter error, fall through with the original response.
+	}
+
+	copyHeaders(w.Header(), resp.Header)
+	w.WriteHeader(resp.StatusCode)
+	_, _ = w.Write(responseBody)
 }
 
 func shouldRetryStatus(status int) bool {

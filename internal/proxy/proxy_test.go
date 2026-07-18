@@ -203,6 +203,72 @@ func TestProxyRecordsUsageFromSSEUsageChunk(t *testing.T) {
 	}
 }
 
+func TestProxyModelsEndpointNoKey(t *testing.T) {
+	client := roundTripClient(func(r *http.Request) *http.Response {
+		if got := r.Header.Get("Authorization"); got != "" {
+			t.Fatalf("Authorization should be empty for /v1/models, got %q", got)
+		}
+		// upstream returns 2 models; only "gpt-test" is in config prices
+		return response(http.StatusOK, "application/json", []byte(`{"data":[{"id":"gpt-test","object":"model"},{"id":"other-model","object":"model"}]}`))
+	})
+
+	handler := NewHandler(Config{
+		BaseURL: "https://api.example.test/v1",
+		Keys: []selector.Key{
+			{Label: "a", Secret: "sk-a", Weight: 1, Enabled: true},
+		},
+		Strategy:           "leastload",
+		MaxRetries:         1,
+		Recorder:           &MemoryRecorder{},
+		HTTPClientOverride: client,
+		Prices: map[string]accounting.Pricing{
+			"gpt-test": {InputPer1M: 1, OutputPer1M: 2},
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/models", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body = %s", rr.Code, rr.Body.String())
+	}
+	body := rr.Body.String()
+	if !strings.Contains(body, `"id":"gpt-test"`) {
+		t.Fatalf("expected gpt-test in response, got: %s", body)
+	}
+	if strings.Contains(body, `"id":"other-model"`) {
+		t.Fatalf("other-model should be filtered out, got: %s", body)
+	}
+}
+
+func TestProxyModelsEndpointNoEnabledModels(t *testing.T) {
+	client := roundTripClient(func(r *http.Request) *http.Response {
+		return response(http.StatusOK, "application/json", []byte(`{"data":[{"id":"gpt-test"}]}`))
+	})
+
+	handler := NewHandler(Config{
+		BaseURL:            "https://api.example.test/v1",
+		Keys:               []selector.Key{{Label: "a", Secret: "sk-a", Weight: 1, Enabled: true}},
+		Strategy:           "leastload",
+		MaxRetries:         1,
+		Recorder:           &MemoryRecorder{},
+		HTTPClientOverride: client,
+		// No Prices means no models are enabled; everything filtered out.
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/models", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body = %s", rr.Code, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), `"data":[]`) {
+		t.Fatalf("expected empty data array, got: %s", rr.Body.String())
+	}
+}
+
 type roundTripFunc func(*http.Request) *http.Response
 
 func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
