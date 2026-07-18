@@ -105,6 +105,14 @@ func TestAdminDashboardReturnsMergedDashboard(t *testing.T) {
 				Tokens:   17,
 				CostUSD:  0.012,
 			}},
+			TimeSeries: []DashboardTimeBucket{{
+				StartedAt:    "2026-06-06T08:55",
+				Requests:     2,
+				Errors:       1,
+				CostUSD:      0.012,
+				AvgLatencyMS: 100,
+			}},
+			ModelCosts:   []DashboardModelCost{{Model: "gpt-test", Requests: 2, CostUSD: 0.012}},
 			RecentErrors: []store.RequestLog{{RequestID: "err-a", StatusCode: 429}},
 		},
 	}
@@ -121,7 +129,7 @@ func TestAdminDashboardReturnsMergedDashboard(t *testing.T) {
 	if err := json.Unmarshal(rr.Body.Bytes(), &payload); err != nil {
 		t.Fatal(err)
 	}
-	if payload.Overview.Requests != 3 || payload.Keys[0].Label != "key-a" || payload.RecentErrors[0].RequestID != "err-a" {
+	if payload.Overview.Requests != 3 || payload.Keys[0].Label != "key-a" || payload.TimeSeries[0].Requests != 2 || payload.ModelCosts[0].Model != "gpt-test" || payload.RecentErrors[0].RequestID != "err-a" {
 		t.Fatalf("payload = %+v", payload)
 	}
 }

@@ -210,7 +210,20 @@ func (p adminProvider) SummarySince(since time.Time) (store.Summary, error) {
 }
 
 func (p adminProvider) Dashboard(window time.Duration) (httpserver.DashboardResponse, error) {
-	stats, err := p.db.DashboardSince(time.Now().UTC().Add(-window), 20)
+	since := time.Now().UTC().Add(-window)
+	stats, err := p.db.DashboardSince(since, 20)
+	if err != nil {
+		return httpserver.DashboardResponse{}, err
+	}
+	bucket := time.Minute
+	if window >= 24*time.Hour {
+		bucket = time.Hour
+	}
+	timeSeries, err := p.db.DashboardTimeSeriesSince(since, bucket)
+	if err != nil {
+		return httpserver.DashboardResponse{}, err
+	}
+	modelCosts, err := p.db.DashboardModelCostsSince(since)
 	if err != nil {
 		return httpserver.DashboardResponse{}, err
 	}
@@ -247,6 +260,25 @@ func (p adminProvider) Dashboard(window time.Duration) (httpserver.DashboardResp
 		})
 	}
 
+	responseSeries := make([]httpserver.DashboardTimeBucket, 0, len(timeSeries))
+	for _, point := range timeSeries {
+		responseSeries = append(responseSeries, httpserver.DashboardTimeBucket{
+			StartedAt:    point.StartedAt,
+			Requests:     point.Requests,
+			Errors:       point.Errors,
+			CostUSD:      point.CostUSD,
+			AvgLatencyMS: point.AvgLatencyMS,
+		})
+	}
+	responseModelCosts := make([]httpserver.DashboardModelCost, 0, len(modelCosts))
+	for _, modelCost := range modelCosts {
+		responseModelCosts = append(responseModelCosts, httpserver.DashboardModelCost{
+			Model:    modelCost.Model,
+			Requests: modelCost.Requests,
+			CostUSD:  modelCost.CostUSD,
+		})
+	}
+
 	return httpserver.DashboardResponse{
 		Overview: httpserver.DashboardOverview{
 			Requests:     stats.Overview.Requests,
@@ -258,6 +290,8 @@ func (p adminProvider) Dashboard(window time.Duration) (httpserver.DashboardResp
 			AvgLatencyMS: stats.Overview.AvgLatencyMS,
 		},
 		Keys:         responseKeys,
+		TimeSeries:   responseSeries,
+		ModelCosts:   responseModelCosts,
 		RecentErrors: stats.RecentErrors,
 	}, nil
 }

@@ -134,3 +134,79 @@ func TestDashboardSinceAggregatesOverviewKeysAndRecentErrors(t *testing.T) {
 		t.Fatalf("recent errors = %+v", dashboard.RecentErrors)
 	}
 }
+
+func TestDashboardTimeSeriesSinceGroupsRequestsIntoMinuteBuckets(t *testing.T) {
+	db, err := Open(":memory:", false, 1, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := db.Migrate(); err != nil {
+		t.Fatal(err)
+	}
+
+	now := time.Date(2026, 6, 6, 9, 10, 0, 0, time.UTC)
+	entries := []RequestLog{
+		{RequestID: "ok-a", StartedAt: now.Add(-9*time.Minute - 30*time.Second), Method: "POST", Path: "/v1/chat/completions", KeyLabel: "key-a", StatusCode: 200, CostUSD: 0.01, LatencyMS: 100},
+		{RequestID: "err-a", StartedAt: now.Add(-9*time.Minute - 5*time.Second), Method: "POST", Path: "/v1/chat/completions", KeyLabel: "key-a", StatusCode: 429, CostUSD: 0.02, LatencyMS: 300, Error: "rate limited"},
+		{RequestID: "ok-b", StartedAt: now.Add(-4*time.Minute - 10*time.Second), Method: "POST", Path: "/v1/embeddings", KeyLabel: "key-b", StatusCode: 200, CostUSD: 0.03, LatencyMS: 200},
+		{RequestID: "old", StartedAt: now.Add(-2 * time.Hour), Method: "POST", Path: "/v1/chat/completions", KeyLabel: "key-a", StatusCode: 200, CostUSD: 1, LatencyMS: 10},
+	}
+	for _, entry := range entries {
+		if err := db.InsertRequestLog(entry); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	series, err := db.DashboardTimeSeriesSince(now.Add(-time.Hour), time.Minute)
+	if err != nil {
+		t.Fatalf("DashboardTimeSeriesSince returned error: %v", err)
+	}
+	if len(series) != 2 {
+		t.Fatalf("series = %+v", series)
+	}
+	if series[0].Requests != 2 || series[0].Errors != 1 || series[0].AvgLatencyMS != 200 || series[0].CostUSD != 0.03 {
+		t.Fatalf("first bucket = %+v", series[0])
+	}
+	if series[1].Requests != 1 || series[1].Errors != 0 || series[1].AvgLatencyMS != 200 || series[1].CostUSD != 0.03 {
+		t.Fatalf("second bucket = %+v", series[1])
+	}
+}
+
+func TestDashboardModelCostsSinceAggregatesCostAndRequestsByModel(t *testing.T) {
+	db, err := Open(":memory:", false, 1, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := db.Migrate(); err != nil {
+		t.Fatal(err)
+	}
+
+	now := time.Date(2026, 6, 6, 9, 10, 0, 0, time.UTC)
+	entries := []RequestLog{
+		{RequestID: "chat-a", StartedAt: now.Add(-5 * time.Minute), Method: "POST", Path: "/v1/chat/completions", Model: "chat-model", KeyLabel: "key-a", StatusCode: 200, CostUSD: 0.02},
+		{RequestID: "chat-b", StartedAt: now.Add(-4 * time.Minute), Method: "POST", Path: "/v1/chat/completions", Model: "chat-model", KeyLabel: "key-b", StatusCode: 200, CostUSD: 0.03},
+		{RequestID: "embed", StartedAt: now.Add(-3 * time.Minute), Method: "POST", Path: "/v1/embeddings", Model: "embed-model", KeyLabel: "key-a", StatusCode: 200, CostUSD: 0.01},
+		{RequestID: "old", StartedAt: now.Add(-2 * time.Hour), Method: "POST", Path: "/v1/chat/completions", Model: "chat-model", KeyLabel: "key-a", StatusCode: 200, CostUSD: 1},
+	}
+	for _, entry := range entries {
+		if err := db.InsertRequestLog(entry); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	modelCosts, err := db.DashboardModelCostsSince(now.Add(-time.Hour))
+	if err != nil {
+		t.Fatalf("DashboardModelCostsSince returned error: %v", err)
+	}
+	if len(modelCosts) != 2 {
+		t.Fatalf("model costs = %+v", modelCosts)
+	}
+	if modelCosts[0].Model != "chat-model" || modelCosts[0].Requests != 2 || modelCosts[0].CostUSD != 0.05 {
+		t.Fatalf("chat-model cost = %+v", modelCosts[0])
+	}
+	if modelCosts[1].Model != "embed-model" || modelCosts[1].Requests != 1 || modelCosts[1].CostUSD != 0.01 {
+		t.Fatalf("embed-model cost = %+v", modelCosts[1])
+	}
+}

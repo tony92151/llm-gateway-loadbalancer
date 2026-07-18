@@ -20,9 +20,11 @@ type AdminProvider interface {
 }
 
 type DashboardResponse struct {
-	Overview     DashboardOverview  `json:"overview"`
-	Keys         []DashboardKey     `json:"keys"`
-	RecentErrors []store.RequestLog `json:"recent_errors"`
+	Overview     DashboardOverview     `json:"overview"`
+	Keys         []DashboardKey        `json:"keys"`
+	TimeSeries   []DashboardTimeBucket `json:"time_series"`
+	ModelCosts   []DashboardModelCost  `json:"model_costs"`
+	RecentErrors []store.RequestLog    `json:"recent_errors"`
 }
 
 type DashboardOverview struct {
@@ -45,6 +47,20 @@ type DashboardKey struct {
 	Errors        int       `json:"errors"`
 	Tokens        int       `json:"tokens"`
 	CostUSD       float64   `json:"cost_usd"`
+}
+
+type DashboardTimeBucket struct {
+	StartedAt    string  `json:"started_at"`
+	Requests     int     `json:"requests"`
+	Errors       int     `json:"errors"`
+	CostUSD      float64 `json:"cost_usd"`
+	AvgLatencyMS int64   `json:"avg_latency_ms"`
+}
+
+type DashboardModelCost struct {
+	Model    string  `json:"model"`
+	Requests int     `json:"requests"`
+	CostUSD  float64 `json:"cost_usd"`
 }
 
 func NewAdminHandler(provider AdminProvider, monitorEnabled bool) http.Handler {

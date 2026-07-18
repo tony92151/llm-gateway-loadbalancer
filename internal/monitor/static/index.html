@@ -5,249 +5,60 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>LLM Gateway Monitor</title>
   <style>
-    :root {
-      color-scheme: light;
-      --bg: #f5f6f8;
-      --panel: #ffffff;
-      --line: #dfe3ea;
-      --text: #171a21;
-      --muted: #667085;
-      --ok: #16794c;
-      --warn: #b54708;
-      --bad: #b42318;
-      --chip: #eef1f5;
-    }
+    :root { color-scheme: dark; --bg:#150f23; --panel:#1f1633; --raised:#271d3d; --line:#362d59; --text:#fff; --muted:#c7c0d3; --accent:#a99bff; --ok:#79dca5; --warn:#ffcf70; --bad:#fa7faa; --chip:#362d59; }
     * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: var(--bg);
-      color: var(--text);
-    }
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      padding: 18px 24px;
-      background: #171a21;
-      color: #fff;
-    }
-    h1 { margin: 0; font-size: 18px; font-weight: 650; }
-    main { padding: 20px 24px 28px; display: grid; gap: 16px; }
-    section {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 14px;
-      min-width: 0;
-    }
-    h2 { margin: 0 0 12px; font-size: 14px; font-weight: 650; }
-    .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-    .segmented {
-      display: inline-flex;
-      overflow: hidden;
-      border: 1px solid #475467;
-      border-radius: 6px;
-    }
-    .segmented button {
-      border: 0;
-      border-right: 1px solid #475467;
-      background: transparent;
-      color: #fff;
-      min-width: 46px;
-      height: 30px;
-      padding: 0 10px;
-      cursor: pointer;
-    }
-    .segmented button:last-child { border-right: 0; }
-    .segmented button.active { background: #fff; color: #171a21; }
-    .refresh {
-      border: 1px solid #475467;
-      background: transparent;
-      color: #fff;
-      border-radius: 6px;
-      height: 30px;
-      padding: 0 10px;
-      cursor: pointer;
-    }
-    .status { color: #d0d5dd; font-size: 12px; min-width: 86px; text-align: right; }
-    .cards {
-      display: grid;
-      grid-template-columns: repeat(6, minmax(120px, 1fr));
-      gap: 12px;
-    }
-    .card {
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 12px;
-      background: #fbfcfe;
-      min-height: 82px;
-    }
-    .label { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
-    .value { font-size: 24px; line-height: 1.1; font-weight: 700; white-space: nowrap; }
-    .subvalue { color: var(--muted); font-size: 12px; margin-top: 6px; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th, td { text-align: left; border-bottom: 1px solid #edf0f4; padding: 8px; vertical-align: middle; }
-    th { color: var(--muted); font-weight: 650; }
-    tr:last-child td { border-bottom: 0; }
-    code { background: var(--chip); border-radius: 4px; padding: 2px 5px; }
-    .badge { display: inline-flex; align-items: center; border-radius: 999px; padding: 3px 8px; font-size: 12px; font-weight: 650; }
-    .badge.ok { background: #dcfae6; color: var(--ok); }
-    .badge.warn { background: #fef0c7; color: var(--warn); }
-    .badge.bad { background: #fee4e2; color: var(--bad); }
-    .empty { color: var(--muted); font-size: 13px; padding: 6px 0; }
-    .error { color: var(--bad); }
-    @media (max-width: 980px) {
-      header { align-items: flex-start; flex-direction: column; }
-      .status { text-align: left; }
-      .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      section { overflow-x: auto; }
-      table { min-width: 760px; }
-    }
+    body { margin:0; font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:var(--bg); color:var(--text); }
+    header { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:18px 24px; background:var(--panel); border-bottom:1px solid var(--line); }
+    h1 { margin:0; font-size:18px; font-weight:700; } h2 { margin:0 0 16px; font-size:15px; font-weight:700; letter-spacing:.01em; }
+    main { max-width:1440px; margin:0 auto; padding:24px; display:grid; gap:16px; } section { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; min-width:0; }
+    .toolbar,.legend,.bar-cell { display:flex; align-items:center; gap:10px; } .toolbar { flex-wrap:wrap; } .segmented { display:inline-flex; overflow:hidden; border:1px solid #584674; border-radius:7px; }
+    .segmented button,.refresh { border:0; background:transparent; color:#fff; min-width:46px; height:30px; padding:0 10px; cursor:pointer; } .segmented button { border-right:1px solid #584674; } .segmented button:last-child { border-right:0; } .segmented button.active { background:var(--accent); color:#1f1633; font-weight:700; }
+    .refresh { border:1px solid #584674; border-radius:7px; } .status { color:var(--muted); font-size:12px; min-width:86px; text-align:right; }
+    .cards { display:grid; grid-template-columns:repeat(6,minmax(120px,1fr)); gap:12px; } .card { border:1px solid var(--line); border-radius:10px; padding:14px; background:var(--raised); min-height:88px; } .label,.metric { color:var(--muted); font-size:12px; } .label { margin-bottom:8px; } .value { font-size:24px; line-height:1.1; font-weight:750; white-space:nowrap; } .subvalue { color:var(--muted); font-size:12px; margin-top:6px; }
+    .chart-grid { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(300px,1fr); gap:16px; } .chart { display:block; width:100%; height:230px; overflow:visible; } .chart-label { fill:var(--muted); font-size:11px; } .legend { gap:16px; color:var(--muted); font-size:12px; margin:-6px 0 10px; } .legend i { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; } .bar { height:6px; min-width:2px; border-radius:99px; background:var(--accent); }
+    table { width:100%; border-collapse:collapse; font-size:13px; } th,td { text-align:left; border-bottom:1px solid var(--line); padding:10px 8px; vertical-align:middle; } th { color:var(--muted); font-weight:650; } tr:last-child td { border-bottom:0; } code { background:var(--chip); border-radius:4px; padding:2px 5px; color:#fff; } .badge { display:inline-flex; align-items:center; border-radius:999px; padding:3px 8px; font-size:12px; font-weight:700; } .badge.ok { background:#1d493c; color:var(--ok); } .badge.warn { background:#51411e; color:var(--warn); } .badge.bad { background:#51283e; color:var(--bad); } .empty { color:var(--muted); font-size:13px; padding:6px 0; } .error { color:var(--bad); }
+    @media (max-width:980px) { header { align-items:flex-start; flex-direction:column; } .status { text-align:left; } .cards { grid-template-columns:repeat(2,minmax(0,1fr)); } .chart-grid { grid-template-columns:1fr; } section { overflow-x:auto; } table { min-width:760px; } }
   </style>
 </head>
 <body>
   <header>
     <h1>LLM Gateway Monitor</h1>
-    <div class="toolbar">
-      <div class="segmented" id="windows">
-        <button data-window="15m">15m</button>
-        <button data-window="1h" class="active">1h</button>
-        <button data-window="24h">24h</button>
-      </div>
-      <button class="refresh" id="refresh">Refresh</button>
-      <div class="status" id="status">Loading</div>
-    </div>
+    <div class="toolbar"><div class="segmented" id="windows"><button data-window="15m">15m</button><button data-window="1h" class="active">1h</button><button data-window="24h">24h</button></div><button class="refresh" id="refresh">Refresh</button><div class="status" id="status">Loading</div></div>
   </header>
   <main>
-    <section>
-      <h2>Overview</h2>
-      <div class="cards">
-        <div class="card"><div class="label">Requests</div><div class="value" id="requests">0</div></div>
-        <div class="card"><div class="label">Success Rate</div><div class="value" id="success">0%</div></div>
-        <div class="card"><div class="label">Errors</div><div class="value" id="errors">0</div></div>
-        <div class="card"><div class="label">Tokens</div><div class="value" id="tokens">0</div><div class="subvalue" id="tokensSplit">0 in / 0 out</div></div>
-        <div class="card"><div class="label">Cost</div><div class="value" id="cost">$0.0000</div></div>
-        <div class="card"><div class="label">Avg Latency</div><div class="value" id="latency">0ms</div></div>
-      </div>
-    </section>
-    <section>
-      <h2>Keys</h2>
-      <table>
-        <thead><tr><th>Key</th><th>Status</th><th>In flight</th><th>Requests</th><th>Errors</th><th>Tokens</th><th>Cost</th><th>Last error</th></tr></thead>
-        <tbody id="keys"></tbody>
-      </table>
-    </section>
-    <section>
-      <h2>Recent Errors</h2>
-      <table>
-        <thead><tr><th>Time</th><th>Status</th><th>Key</th><th>Model</th><th>Path</th><th>Latency</th><th>Error</th></tr></thead>
-        <tbody id="recentErrors"></tbody>
-      </table>
-    </section>
+    <section><h2>Overview</h2><div class="cards"><div class="card"><div class="label">Requests</div><div class="value" id="requests">0</div></div><div class="card"><div class="label">Success Rate</div><div class="value" id="success">0%</div></div><div class="card"><div class="label">Errors</div><div class="value" id="errors">0</div></div><div class="card"><div class="label">Tokens</div><div class="value" id="tokens">0</div><div class="subvalue" id="tokensSplit">0 in / 0 out</div></div><div class="card"><div class="label">Cost</div><div class="value" id="cost">$0.0000</div></div><div class="card"><div class="label">Avg Latency</div><div class="value" id="latency">0ms</div></div></div></section>
+    <div class="chart-grid">
+      <section><h2>Traffic & Error Rate</h2><div class="legend"><span><i style="background:#a99bff"></i>Requests</span><span><i style="background:#fa7faa"></i>Error rate</span></div><svg class="chart" id="trafficChart" role="img" aria-label="Requests and error rate over time"></svg></section>
+      <section><h2>Latency Trend</h2><div class="legend"><span><i style="background:#79dca5"></i>Average latency</span></div><svg class="chart" id="latencyChart" role="img" aria-label="Average latency over time"></svg></section>
+    </div>
+    <section><h2>Cost Trend</h2><div class="legend"><span><i style="background:#ffb287"></i>Cost (USD)</span></div><svg class="chart" id="costChart" role="img" aria-label="Cost over time"></svg></section>
+    <section><h2>Cost by Model</h2><table><thead><tr><th>Model</th><th>Requests</th><th>Cost</th><th>Share</th></tr></thead><tbody id="modelCosts"></tbody></table></section>
+    <section><h2>Key Health</h2><table><thead><tr><th>Key</th><th>Status</th><th>In flight</th><th>Requests</th><th>Errors</th><th>Tokens</th><th>Cost</th><th>Last error</th></tr></thead><tbody id="keys"></tbody></table></section>
+    <section><h2>Recent Errors</h2><table><thead><tr><th>Time</th><th>Status</th><th>Key</th><th>Model</th><th>Path</th><th>Latency</th><th>Error</th></tr></thead><tbody id="recentErrors"></tbody></table></section>
   </main>
   <script>
     let activeWindow = '1h';
-
-    const els = {
-      status: document.getElementById('status'),
-      requests: document.getElementById('requests'),
-      success: document.getElementById('success'),
-      errors: document.getElementById('errors'),
-      tokens: document.getElementById('tokens'),
-      tokensSplit: document.getElementById('tokensSplit'),
-      cost: document.getElementById('cost'),
-      latency: document.getElementById('latency'),
-      keys: document.getElementById('keys'),
-      recentErrors: document.getElementById('recentErrors')
-    };
-
-    function text(value) {
-      return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    const els = Object.fromEntries(['status','requests','success','errors','tokens','tokensSplit','cost','latency','keys','recentErrors','trafficChart','latencyChart','costChart','modelCosts'].map(id => [id, document.getElementById(id)]));
+    const text = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    const number = value => Number(value || 0).toLocaleString(); const money = value => '$' + Number(value || 0).toFixed(4); const pct = value => Math.round(Number(value || 0) * 1000) / 10 + '%';
+    function keyStatus(key) { if (!key.enabled) return ['Disabled','bad']; if (key.cooldown_until && new Date(key.cooldown_until) > new Date()) return ['Cooling down','warn']; if (key.last_error) return ['Warning','warn']; return ['Healthy','ok']; }
+    function chart(svg, points, value, color, bars, format = value => Math.round(value)) {
+      const width = Math.max(svg.clientWidth || 300, 300), height = 230, pad = { top:12, right:12, bottom:48, left:34 }, innerW = width-pad.left-pad.right, innerH = height-pad.top-pad.bottom;
+      svg.setAttribute('viewBox', `0 0 ${width} ${height}`); if (!points.length) { svg.innerHTML = `<text x="${width/2}" y="${height/2}" text-anchor="middle" class="chart-label">No traffic in this window</text>`; return; }
+      const values = points.map(value), max = Math.max(...values, 1), x = i => pad.left + innerW * (points.length === 1 ? .5 : i/(points.length-1)), y = v => pad.top + innerH * (1-v/max);
+      const grid = [0,.5,1].map(p => `<line x1="${pad.left}" x2="${width-pad.right}" y1="${pad.top+innerH*p}" y2="${pad.top+innerH*p}" stroke="#362d59"/><text x="${pad.left-6}" y="${pad.top+innerH*p+4}" text-anchor="end" class="chart-label">${format(max*(1-p))}</text>`).join('');
+      const marks = bars ? points.map((point,i) => { const barW = Math.max(3, innerW/points.length*.7), top=y(value(point)); return `<rect x="${x(i)-barW/2}" y="${top}" width="${barW}" height="${pad.top+innerH-top}" rx="2" fill="${color}" opacity=".82"><title>${text(point.started_at)}: ${format(value(point))}</title></rect>`; }).join('') : `<polyline fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" points="${points.map((point,i) => `${x(i)},${y(value(point))}`).join(' ')}"/>${points.map((point,i) => `<circle cx="${x(i)}" cy="${y(value(point))}" r="3" fill="${color}"><title>${text(point.started_at)}: ${format(value(point))}</title></circle>`).join('')}`;
+      const labels = points.map((point,i) => `<text x="${x(i)}" y="${height-7}" text-anchor="end" class="chart-label" transform="rotate(-55 ${x(i)} ${height-7})">${text(point.started_at.slice(11,16) || point.started_at)}</text>`).join(''); svg.innerHTML = grid + marks + labels;
     }
-
-    function number(value) {
-      return Number(value || 0).toLocaleString();
-    }
-
-    function money(value) {
-      return '$' + Number(value || 0).toFixed(4);
-    }
-
-    function pct(value) {
-      return Math.round(Number(value || 0) * 1000) / 10 + '%';
-    }
-
-    function keyStatus(key) {
-      if (!key.enabled) return ['Disabled', 'bad'];
-      if (key.cooldown_until && new Date(key.cooldown_until) > new Date()) return ['Cooling down', 'warn'];
-      if (key.last_error) return ['Warning', 'warn'];
-      return ['Healthy', 'ok'];
-    }
-
-    async function refresh() {
-      els.status.textContent = 'Loading';
-      const res = await fetch('/admin/dashboard?window=' + encodeURIComponent(activeWindow));
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
-      render(data);
-      els.status.textContent = new Date().toLocaleTimeString();
-    }
-
+    async function refresh() { els.status.textContent='Loading'; const res=await fetch('/admin/dashboard?window='+encodeURIComponent(activeWindow)); if(!res.ok) throw new Error(await res.text()); const data=await res.json(); render(data); els.status.textContent='Updated '+new Date().toLocaleTimeString(); }
     function render(data) {
-      const overview = data.overview || {};
-      els.requests.textContent = number(overview.requests);
-      els.success.textContent = pct(overview.success_rate);
-      els.errors.textContent = number(overview.errors);
-      els.tokens.textContent = number((overview.input_tokens || 0) + (overview.output_tokens || 0));
-      els.tokensSplit.textContent = number(overview.input_tokens) + ' in / ' + number(overview.output_tokens) + ' out';
-      els.cost.textContent = money(overview.cost_usd);
-      els.latency.textContent = number(overview.avg_latency_ms) + 'ms';
-
-      const keys = data.keys || [];
-      els.keys.innerHTML = keys.length ? keys.map(key => {
-        const [label, cls] = keyStatus(key);
-        return `<tr>
-          <td><code>${text(key.label)}</code></td>
-          <td><span class="badge ${cls}">${label}</span></td>
-          <td>${number(key.in_flight)}</td>
-          <td>${number(key.requests)}</td>
-          <td>${number(key.errors)}</td>
-          <td>${number(key.tokens)}</td>
-          <td>${money(key.cost_usd)}</td>
-          <td>${text(key.last_error)}</td>
-        </tr>`;
-      }).join('') : '<tr><td colspan="8"><div class="empty">No keys configured.</div></td></tr>';
-
-      const errors = data.recent_errors || [];
-      els.recentErrors.innerHTML = errors.length ? errors.map(row => `<tr>
-        <td>${text(new Date(row.started_at).toLocaleString())}</td>
-        <td><span class="badge bad">${number(row.status_code)}</span></td>
-        <td><code>${text(row.key_label)}</code></td>
-        <td>${text(row.model)}</td>
-        <td>${text(row.path)}</td>
-        <td>${number(row.latency_ms)}ms</td>
-        <td class="error">${text(row.error)}</td>
-      </tr>`).join('') : '<tr><td colspan="7"><div class="empty">No recent errors.</div></td></tr>';
+      const overview=data.overview||{}; els.requests.textContent=number(overview.requests); els.success.textContent=pct(overview.success_rate); els.errors.textContent=number(overview.errors); els.tokens.textContent=number((overview.input_tokens||0)+(overview.output_tokens||0)); els.tokensSplit.textContent=number(overview.input_tokens)+' in / '+number(overview.output_tokens)+' out'; els.cost.textContent=money(overview.cost_usd); els.latency.textContent=number(overview.avg_latency_ms)+'ms';
+      const series=data.time_series||[]; chart(els.trafficChart,series,p=>p.requests,'#a99bff',true); chart(els.latencyChart,series,p=>p.avg_latency_ms,'#79dca5',false,value=>`${Math.round(value)}ms`); chart(els.costChart,series,p=>p.cost_usd,'#ffb287',true,value=>money(value));
+      const modelCosts=data.model_costs||[], totalModelCost=modelCosts.reduce((total,row)=>total+Number(row.cost_usd||0),0); els.modelCosts.innerHTML=modelCosts.length?modelCosts.map(row=>{const share=totalModelCost?Number(row.cost_usd||0)/totalModelCost:0;return `<tr><td><code>${text(row.model)}</code></td><td>${number(row.requests)}</td><td>${money(row.cost_usd)}</td><td><div class="bar-cell"><span>${pct(share)}</span><span class="bar" style="width:${Math.max(2,share*100)}px"></span></div></td></tr>`;}).join(''):'<tr><td colspan="4"><div class="empty">No model cost data in this window.</div></td></tr>';
+      const keys=[...(data.keys||[])].sort((a,b)=>b.errors-a.errors||b.requests-a.requests||a.label.localeCompare(b.label)); const maxRequests=Math.max(...keys.map(k=>k.requests||0),1); els.keys.innerHTML=keys.length?keys.map(key=>{const [label,cls]=keyStatus(key), rate=key.requests?key.errors/key.requests:0; return `<tr><td><code>${text(key.label)}</code></td><td><span class="badge ${cls}">${label}</span></td><td>${number(key.in_flight)}</td><td><div class="bar-cell"><span>${number(key.requests)}</span><span class="bar" style="width:${Math.max(2,key.requests/maxRequests*70)}px"></span></div></td><td>${number(key.errors)} <span class="metric">${pct(rate)}</span></td><td>${number(key.tokens)}</td><td>${money(key.cost_usd)}</td><td class="error">${text(key.last_error)}</td></tr>`;}).join(''):'<tr><td colspan="8"><div class="empty">No keys configured.</div></td></tr>';
+      const errors=data.recent_errors||[]; els.recentErrors.innerHTML=errors.length?errors.map(row=>`<tr><td>${text(new Date(row.started_at).toLocaleString())}</td><td><span class="badge bad">${number(row.status_code)}</span></td><td><code>${text(row.key_label)}</code></td><td>${text(row.model)}</td><td>${text(row.path)}</td><td>${number(row.latency_ms)}ms</td><td class="error" title="${text(row.error)}">${text(row.error)}</td></tr>`).join(''):'<tr><td colspan="7"><div class="empty">No recent errors.</div></td></tr>';
     }
-
-    document.getElementById('windows').addEventListener('click', event => {
-      const button = event.target.closest('button[data-window]');
-      if (!button) return;
-      activeWindow = button.dataset.window;
-      document.querySelectorAll('#windows button').forEach(el => el.classList.toggle('active', el === button));
-      refresh().catch(showError);
-    });
-    document.getElementById('refresh').addEventListener('click', () => refresh().catch(showError));
-
-    function showError(err) {
-      els.status.textContent = 'Error';
-      els.recentErrors.innerHTML = `<tr><td colspan="7"><div class="empty error">${text(err.message)}</div></td></tr>`;
-    }
-
-    refresh().catch(showError);
-    setInterval(() => refresh().catch(showError), 5000);
+    document.getElementById('windows').addEventListener('click', event=>{const button=event.target.closest('button[data-window]');if(!button)return;activeWindow=button.dataset.window;document.querySelectorAll('#windows button').forEach(el=>el.classList.toggle('active',el===button));refresh().catch(showError);}); document.getElementById('refresh').addEventListener('click',()=>refresh().catch(showError)); function showError(err){els.status.textContent='Error';els.recentErrors.innerHTML=`<tr><td colspan="7"><div class="empty error">${text(err.message)}</div></td></tr>`;} refresh().catch(showError); setInterval(()=>refresh().catch(showError),5000);
   </script>
 </body>
 </html>
