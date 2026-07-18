@@ -209,4 +209,4 @@ Useful source entry points:
 - The gateway does not authenticate inbound clients.
 - Upstream API keys are read from config/env at startup and are not encrypted into the database.
 - There are no runtime key-management CLI commands yet.
-- Streaming responses are proxied and logged, but token usage/cost is only captured when a non-streaming response body contains `usage`.
+- Token usage/cost is only captured when the upstream response includes an OpenAI-style `usage` object, either in a JSON response body or an SSE `data:` chunk.

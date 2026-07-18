@@ -153,6 +153,56 @@ func TestProxyStreamsSSE(t *testing.T) {
 	}
 }
 
+func TestProxyRecordsUsageFromSSEUsageChunk(t *testing.T) {
+	client := roundTripClient(func(r *http.Request) *http.Response {
+		body := []byte(strings.Join([]string{
+			`data: {"choices":[{"delta":{"content":"hi"}}]}`,
+			``,
+			`data: {"choices":[],"usage":{"prompt_tokens":12,"completion_tokens":7,"prompt_tokens_details":{"cached_tokens":3}}}`,
+			``,
+			`data: [DONE]`,
+			``,
+		}, "\n"))
+		return response(http.StatusOK, "text/event-stream", body)
+	})
+
+	recorder := &MemoryRecorder{}
+	handler := NewHandler(Config{
+		BaseURL: "https://api.example.test/v1",
+		Keys: []selector.Key{
+			{Label: "a", Secret: "sk-a", Weight: 1, Enabled: true},
+		},
+		Strategy:           "leastload",
+		MaxRetries:         1,
+		Recorder:           recorder,
+		HTTPClientOverride: client,
+		Prices: map[string]accounting.Pricing{
+			"gpt-test": {InputPer1M: 2, OutputPer1M: 8, CachedInputPer1M: 1},
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(`{"model":"gpt-test","stream":true}`))
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body = %s", rr.Code, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), `"completion_tokens":7`) {
+		t.Fatalf("stream body = %q", rr.Body.String())
+	}
+	if len(recorder.Entries) != 1 {
+		t.Fatalf("recorded entries = %d", len(recorder.Entries))
+	}
+	entry := recorder.Entries[0]
+	if entry.InputTokens != 12 || entry.OutputTokens != 7 || entry.CachedInputTokens != 3 {
+		t.Fatalf("entry = %+v", entry)
+	}
+	if entry.CostUSD == 0 {
+		t.Fatalf("expected cost to be recorded: %+v", entry)
+	}
+}
+
 type roundTripFunc func(*http.Request) *http.Response
 
 func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
