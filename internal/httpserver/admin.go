@@ -87,10 +87,12 @@ func NewAdminHandler(provider AdminProvider, monitorEnabled bool) http.Handler {
 		writeJSON(w, http.StatusOK, dashboard)
 	})
 	if monitorEnabled {
-		r.Get("/monitor/", func(w http.ResponseWriter, r *http.Request) {
+		serveMonitor := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			_, _ = w.Write(monitor.IndexHTML())
-		})
+		}
+		r.Get("/", serveMonitor)
+		r.Get("/monitor/", serveMonitor)
 	}
 	return r
 }

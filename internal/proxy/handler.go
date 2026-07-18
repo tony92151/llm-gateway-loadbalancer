@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/rand"
@@ -193,14 +194,23 @@ func (h *Handler) forward(w http.ResponseWriter, original *http.Request, body []
 	}
 
 	if isEventStream(resp.Header.Get("Content-Type")) {
-		err = copyStream(w, resp.Body)
+		usage, hasUsage, copyErr := copyEventStream(w, resp.Body)
 		entry.CompletedAt = time.Now().UTC()
 		entry.LatencyMS = entry.CompletedAt.Sub(started).Milliseconds()
-		if err != nil {
-			entry.Error = err.Error()
+		if hasUsage {
+			entry.InputTokens = usage.InputTokens
+			entry.OutputTokens = usage.OutputTokens
+			entry.CachedInputTokens = usage.CachedInputTokens
+			h.pool.RecordUsage(key.Label, usage.InputTokens+usage.OutputTokens)
+			if price, ok := h.prices[model]; ok {
+				entry.CostUSD = accounting.CalculateCost(usage, price)
+			}
+		}
+		if copyErr != nil {
+			entry.Error = copyErr.Error()
 		}
 		_ = h.recorder.Record(original.Context(), entry)
-		return resp.StatusCode, false, err
+		return resp.StatusCode, false, copyErr
 	}
 
 	responseBody, err := io.ReadAll(resp.Body)
@@ -297,6 +307,47 @@ func copyStream(w http.ResponseWriter, body io.Reader) error {
 			return err
 		}
 	}
+}
+
+func copyEventStream(w http.ResponseWriter, body io.Reader) (accounting.Usage, bool, error) {
+	flusher, _ := w.(http.Flusher)
+	reader := bufio.NewReader(body)
+	var usage accounting.Usage
+	hasUsage := false
+
+	for {
+		line, err := reader.ReadString('\n')
+		if line != "" {
+			if _, writeErr := io.WriteString(w, line); writeErr != nil {
+				return usage, hasUsage, writeErr
+			}
+			if parsed, ok := extractSSEUsage(line); ok {
+				usage = parsed
+				hasUsage = true
+			}
+			if flusher != nil {
+				flusher.Flush()
+			}
+		}
+		if errors.Is(err, io.EOF) {
+			return usage, hasUsage, nil
+		}
+		if err != nil {
+			return usage, hasUsage, err
+		}
+	}
+}
+
+func extractSSEUsage(line string) (accounting.Usage, bool) {
+	trimmed := strings.TrimSpace(line)
+	if !strings.HasPrefix(trimmed, "data:") {
+		return accounting.Usage{}, false
+	}
+	payload := strings.TrimSpace(strings.TrimPrefix(trimmed, "data:"))
+	if payload == "" || payload == "[DONE]" {
+		return accounting.Usage{}, false
+	}
+	return accounting.ExtractUsage([]byte(payload))
 }
 
 func requestID() string {
